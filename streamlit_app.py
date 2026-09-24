@@ -7,16 +7,112 @@ from datetime import date
 # ============================================================
 
 st.set_page_config(
-    page_title="Controle de Produção Acadêmica",
+    page_title="Produção Acadêmica",
     page_icon="📚",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 DB = "academia.db"
 
 
 # ============================================================
-# BANCO DE DADOS
+# ESTILO
+# ============================================================
+
+st.markdown("""
+<style>
+
+    .main {
+        background-color: #f7f8fa;
+    }
+
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1250px;
+    }
+
+    [data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #e8e8e8;
+    }
+
+    .titulo-principal {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #172033;
+        margin-bottom: 0.2rem;
+    }
+
+    .subtitulo {
+        color: #6b7280;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .card {
+        background: white;
+        padding: 1.3rem;
+        border-radius: 14px;
+        border: 1px solid #e8e8e8;
+        margin-bottom: 1rem;
+    }
+
+    .card-titulo {
+        font-size: 1.1rem;
+        font-weight: 650;
+        color: #172033;
+        margin-bottom: 0.4rem;
+    }
+
+    .card-meta {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 0.25rem 0.65rem;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: #eef2ff;
+        color: #4338ca;
+    }
+
+    .metric-card {
+        background: white;
+        border: 1px solid #e8e8e8;
+        border-radius: 14px;
+        padding: 1.2rem;
+    }
+
+    .metric-label {
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+
+    .metric-number {
+        color: #172033;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-top: 0.2rem;
+    }
+
+    div[data-testid="stForm"] {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 14px;
+        border: 1px solid #e8e8e8;
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# BANCO
 # ============================================================
 
 def conectar():
@@ -24,71 +120,58 @@ def conectar():
 
 
 def criar_banco():
+
     conn = conectar()
     cursor = conn.cursor()
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS artigos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT NOT NULL,
-            autores TEXT,
-            tema TEXT,
-            status TEXT,
-            progresso INTEGER DEFAULT 0,
-            prazo TEXT,
-            observacoes TEXT
-        )
-    """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS projetos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT NOT NULL,
+            nome_projeto TEXT,
+            titulo TEXT,
+
             problema TEXT,
             hipotese TEXT,
-            objetivo TEXT,
-            palavras_chave TEXT,
-            status TEXT,
-            observacoes TEXT
-        )
-    """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS periodicos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            issn TEXT,
-            qualis TEXT,
+            objetivo_geral TEXT,
+            objetivos_especificos TEXT,
+
+            metodologia TEXT,
+
+            autores TEXT,
+            orientador TEXT,
             area TEXT,
-            scopus TEXT,
-            web_of_science TEXT,
-            scielo TEXT,
-            site TEXT,
-            observacoes TEXT
-        )
-    """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS submissoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            artigo TEXT NOT NULL,
-            periodico TEXT NOT NULL,
-            data_submissao TEXT,
-            status TEXT,
-            prazo TEXT,
-            observacoes TEXT
-        )
-    """)
+            resumo TEXT,
+            abstract TEXT,
+            palavras_chave TEXT,
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS publicacoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            artigo TEXT NOT NULL,
-            periodico TEXT,
-            doi TEXT,
-            data_publicacao TEXT,
-            link TEXT,
-            observacoes TEXT
+            introducao TEXT,
+
+            capitulo_1_titulo TEXT,
+            capitulo_1 TEXT,
+
+            capitulo_2_titulo TEXT,
+            capitulo_2 TEXT,
+
+            capitulo_3_titulo TEXT,
+            capitulo_3 TEXT,
+
+            capitulo_4_titulo TEXT,
+            capitulo_4 TEXT,
+
+            conclusao TEXT,
+            referencias TEXT,
+
+            observacoes TEXT,
+
+            progresso INTEGER DEFAULT 0,
+
+            status TEXT DEFAULT 'desenvolvimento',
+
+            data_criacao TEXT,
+            data_atualizacao TEXT
         )
     """)
 
@@ -100,85 +183,90 @@ criar_banco()
 
 
 # ============================================================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES
 # ============================================================
 
-def inserir(tabela, campos, valores):
+def executar(sql, parametros=()):
+
     conn = conectar()
     cursor = conn.cursor()
 
-    placeholders = ", ".join(["?"] * len(valores))
-    campos_sql = ", ".join(campos)
-
-    cursor.execute(
-        f"INSERT INTO {tabela} ({campos_sql}) VALUES ({placeholders})",
-        valores
-    )
+    cursor.execute(sql, parametros)
 
     conn.commit()
     conn.close()
 
 
-def buscar(tabela):
+def buscar(sql, parametros=()):
+
     conn = conectar()
 
     dados = conn.execute(
-        f"SELECT * FROM {tabela}"
+        sql,
+        parametros
     ).fetchall()
 
-    colunas = [
-        descricao[0]
-        for descricao in conn.execute(
-            f"PRAGMA table_info({tabela})"
-        ).fetchall()
-    ]
-
     conn.close()
 
-    return dados, colunas
+    return dados
 
 
-def excluir(tabela, registro_id):
-    conn = conectar()
-    conn.execute(
-        f"DELETE FROM {tabela} WHERE id = ?",
-        (registro_id,)
+def buscar_artigo(id_artigo):
+
+    dados = buscar(
+        "SELECT * FROM artigos WHERE id = ?",
+        (id_artigo,)
     )
-    conn.commit()
-    conn.close()
+
+    if dados:
+        return dados[0]
+
+    return None
 
 
-def quantidade(tabela):
-    conn = conectar()
-    resultado = conn.execute(
-        f"SELECT COUNT(*) FROM {tabela}"
-    ).fetchone()[0]
-    conn.close()
-    return resultado
+def contar(status):
+
+    resultado = buscar(
+        "SELECT COUNT(*) FROM artigos WHERE status = ?",
+        (status,)
+    )
+
+    return resultado[0][0]
 
 
 # ============================================================
 # MENU
 # ============================================================
 
-st.sidebar.title("📚 Produção Acadêmica")
+st.sidebar.markdown(
+    """
+    <div style="
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #172033;
+        margin-bottom: 1.5rem;
+    ">
+        📚 Produção Acadêmica
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 pagina = st.sidebar.radio(
     "Navegação",
     [
         "Dashboard",
-        "Artigos",
-        "Projetos",
-        "Periódicos",
-        "Submissões",
-        "Publicações"
+        "Artigos em Projeto",
+        "Artigos em Desenvolvimento",
+        "Concluídos para submissão"
     ]
 )
 
 st.sidebar.divider()
 
-st.sidebar.caption("Controle de Produção Acadêmica")
-st.sidebar.caption("Versão 1.0")
+st.sidebar.caption(
+    "Sistema pessoal de produção científica"
+)
 
 
 # ============================================================
@@ -187,833 +275,699 @@ st.sidebar.caption("Versão 1.0")
 
 if pagina == "Dashboard":
 
-    st.title("📊 Dashboard")
+    st.markdown(
+        '<div class="titulo-principal">Produção Acadêmica</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitulo">Visão geral da sua produção científica</div>',
+        unsafe_allow_html=True
+    )
+
+    projetos = contar("projeto")
+    desenvolvimento = contar("desenvolvimento")
+    concluidos = contar("concluido")
+    submetidos = contar("submetido")
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Em projeto</div>
+                <div class="metric-number">{projetos}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c2:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Em desenvolvimento</div>
+                <div class="metric-number">{desenvolvimento}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c3:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Prontos para submissão</div>
+                <div class="metric-number">{concluidos}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c4:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-label">Submetidos</div>
+                <div class="metric-number">{submetidos}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.write("")
+    st.divider()
+
+    st.subheader("Fluxo de produção")
 
     st.write(
-        "Visão geral da sua produção científica."
+        "Acompanhe seus artigos desde a ideia inicial até a submissão."
     )
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    fluxo = [
+        ("1", "Projeto", projetos),
+        ("2", "Desenvolvimento", desenvolvimento),
+        ("3", "Concluído", concluidos),
+        ("4", "Submetido", submetidos),
+    ]
 
-    col1.metric(
-        "Artigos",
-        quantidade("artigos")
-    )
+    cols = st.columns(4)
 
-    col2.metric(
-        "Projetos",
-        quantidade("projetos")
-    )
+    for col, (numero, nome, quantidade) in zip(cols, fluxo):
 
-    col3.metric(
-        "Periódicos",
-        quantidade("periodicos")
-    )
+        with col:
 
-    col4.metric(
-        "Submissões",
-        quantidade("submissoes")
-    )
+            st.markdown(
+                f"""
+                <div class="card">
+                    <div style="
+                        font-size:0.8rem;
+                        color:#6b7280;
+                    ">
+                        ETAPA {numero}
+                    </div>
 
-    col5.metric(
-        "Publicações",
-        quantidade("publicacoes")
-    )
+                    <div class="card-titulo">
+                        {nome}
+                    </div>
+
+                    <div style="
+                        font-size:1.8rem;
+                        font-weight:700;
+                        color:#172033;
+                    ">
+                        {quantidade}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     st.divider()
 
-    artigos, _ = buscar("artigos")
+    st.subheader("Artigos em desenvolvimento")
 
-    if artigos:
+    artigos = buscar("""
+        SELECT id, titulo, nome_projeto, progresso
+        FROM artigos
+        WHERE status = 'desenvolvimento'
+        ORDER BY data_atualizacao DESC
+    """)
 
-        st.subheader("Artigos em andamento")
+    if not artigos:
 
-        for artigo in artigos:
-
-            (
-                id_artigo,
-                titulo,
-                autores,
-                tema,
-                status,
-                progresso,
-                prazo,
-                observacoes
-            ) = artigo
-
-            col1, col2 = st.columns([4, 1])
-
-            with col1:
-                st.write(f"**{titulo}**")
-
-                if autores:
-                    st.caption(f"Autores: {autores}")
-
-                if tema:
-                    st.caption(f"Tema: {tema}")
-
-            with col2:
-                st.progress(
-                    min(max(progresso, 0), 100) / 100
-                )
-                st.caption(f"{progresso}% concluído")
-
-            st.divider()
+        st.info("Nenhum artigo em desenvolvimento.")
 
     else:
 
-        st.info(
-            "Ainda não há artigos cadastrados."
-        )
+        for artigo in artigos:
+
+            id_artigo, titulo, nome_projeto, progresso = artigo
+
+            titulo_exibicao = titulo or nome_projeto or "Sem título"
+
+            st.markdown(
+                f"""
+                <div class="card">
+                    <div class="card-titulo">
+                        {titulo_exibicao}
+                    </div>
+
+                    <div class="card-meta">
+                        {nome_projeto or "Projeto não informado"}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            st.progress(
+                progresso / 100
+            )
+
+            st.caption(
+                f"{progresso}% concluído"
+            )
 
 
 # ============================================================
-# ARTIGOS
+# ARTIGOS EM PROJETO
 # ============================================================
 
-elif pagina == "Artigos":
+elif pagina == "Artigos em Projeto":
 
-    st.title("📝 Artigos em andamento")
-
-    aba1, aba2 = st.tabs(
-        ["Cadastrar artigo", "Artigos cadastrados"]
+    st.markdown(
+        '<div class="titulo-principal">Novo artigo</div>',
+        unsafe_allow_html=True
     )
 
-    with aba1:
-
-        with st.form("form_artigo"):
-
-            titulo = st.text_input(
-                "Título"
-            )
-
-            autores = st.text_input(
-                "Autores"
-            )
-
-            tema = st.text_input(
-                "Tema"
-            )
-
-            status = st.selectbox(
-                "Status",
-                [
-                    "Ideia",
-                    "Pesquisa bibliográfica",
-                    "Metodologia",
-                    "Redação",
-                    "Revisão",
-                    "Finalização",
-                    "Pronto para submissão"
-                ]
-            )
-
-            progresso = st.slider(
-                "Percentual de conclusão",
-                0,
-                100,
-                0
-            )
-
-            prazo = st.date_input(
-                "Prazo",
-                value=None
-            )
-
-            observacoes = st.text_area(
-                "Observações"
-            )
-
-            enviar = st.form_submit_button(
-                "Cadastrar artigo"
-            )
-
-            if enviar:
-
-                if not titulo:
-                    st.error(
-                        "Informe o título do artigo."
-                    )
-
-                else:
-
-                    inserir(
-                        "artigos",
-                        [
-                            "titulo",
-                            "autores",
-                            "tema",
-                            "status",
-                            "progresso",
-                            "prazo",
-                            "observacoes"
-                        ],
-                        [
-                            titulo,
-                            autores,
-                            tema,
-                            status,
-                            progresso,
-                            str(prazo),
-                            observacoes
-                        ]
-                    )
-
-                    st.success(
-                        "Artigo cadastrado com sucesso."
-                    )
-
-    with aba2:
-
-        dados, _ = buscar("artigos")
-
-        if not dados:
-
-            st.info(
-                "Nenhum artigo cadastrado."
-            )
-
-        for artigo in dados:
-
-            (
-                id_artigo,
-                titulo,
-                autores,
-                tema,
-                status,
-                progresso,
-                prazo,
-                observacoes
-            ) = artigo
-
-            with st.expander(titulo):
-
-                st.write(f"**Autores:** {autores}")
-                st.write(f"**Tema:** {tema}")
-                st.write(f"**Status:** {status}")
-                st.progress(progresso / 100)
-                st.write(f"**Conclusão:** {progresso}%")
-                st.write(f"**Prazo:** {prazo}")
-
-                if observacoes:
-                    st.write(
-                        f"**Observações:** {observacoes}"
-                    )
-
-                if st.button(
-                    "Excluir artigo",
-                    key=f"excluir_artigo_{id_artigo}"
-                ):
-
-                    excluir(
-                        "artigos",
-                        id_artigo
-                    )
-
-                    st.rerun()
-
-
-# ============================================================
-# PROJETOS
-# ============================================================
-
-elif pagina == "Projetos":
-
-    st.title("💡 Projetos de artigos")
-
-    aba1, aba2 = st.tabs(
-        ["Novo projeto", "Projetos cadastrados"]
+    st.markdown(
+        '<div class="subtitulo">Cadastre a estrutura inicial do projeto de pesquisa</div>',
+        unsafe_allow_html=True
     )
 
-    with aba1:
+    with st.form("novo_projeto"):
 
-        with st.form("form_projeto"):
+        st.subheader("Identificação")
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            nome_projeto = st.text_input(
+                "Nome do projeto"
+            )
+
+        with c2:
 
             titulo = st.text_input(
                 "Título provisório"
             )
 
-            problema = st.text_area(
-                "Problema de pesquisa"
+        autores = st.text_input(
+            "Autores"
+        )
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            orientador = st.text_input(
+                "Orientador"
             )
 
-            hipotese = st.text_area(
-                "Hipótese"
-            )
-
-            objetivo = st.text_area(
-                "Objetivo geral"
-            )
-
-            palavras_chave = st.text_input(
-                "Palavras-chave"
-            )
-
-            status = st.selectbox(
-                "Status",
-                [
-                    "Ideia",
-                    "Em desenvolvimento",
-                    "Projeto definido",
-                    "Transformar em artigo",
-                    "Arquivado"
-                ]
-            )
-
-            observacoes = st.text_area(
-                "Observações"
-            )
-
-            enviar = st.form_submit_button(
-                "Cadastrar projeto"
-            )
-
-            if enviar:
-
-                if not titulo:
-                    st.error(
-                        "Informe o título do projeto."
-                    )
-
-                else:
-
-                    inserir(
-                        "projetos",
-                        [
-                            "titulo",
-                            "problema",
-                            "hipotese",
-                            "objetivo",
-                            "palavras_chave",
-                            "status",
-                            "observacoes"
-                        ],
-                        [
-                            titulo,
-                            problema,
-                            hipotese,
-                            objetivo,
-                            palavras_chave,
-                            status,
-                            observacoes
-                        ]
-                    )
-
-                    st.success(
-                        "Projeto cadastrado."
-                    )
-
-    with aba2:
-
-        dados, _ = buscar("projetos")
-
-        if not dados:
-            st.info(
-                "Nenhum projeto cadastrado."
-            )
-
-        for projeto in dados:
-
-            (
-                id_projeto,
-                titulo,
-                problema,
-                hipotese,
-                objetivo,
-                palavras_chave,
-                status,
-                observacoes
-            ) = projeto
-
-            with st.expander(titulo):
-
-                st.write(
-                    f"**Status:** {status}"
-                )
-
-                st.write(
-                    f"**Problema:** {problema}"
-                )
-
-                st.write(
-                    f"**Hipótese:** {hipotese}"
-                )
-
-                st.write(
-                    f"**Objetivo:** {objetivo}"
-                )
-
-                st.write(
-                    f"**Palavras-chave:** {palavras_chave}"
-                )
-
-                if observacoes:
-                    st.write(
-                        f"**Observações:** {observacoes}"
-                    )
-
-                if st.button(
-                    "Excluir projeto",
-                    key=f"excluir_projeto_{id_projeto}"
-                ):
-
-                    excluir(
-                        "projetos",
-                        id_projeto
-                    )
-
-                    st.rerun()
-
-
-# ============================================================
-# PERIÓDICOS
-# ============================================================
-
-elif pagina == "Periódicos":
-
-    st.title("📖 Revistas e periódicos")
-
-    aba1, aba2 = st.tabs(
-        ["Cadastrar periódico", "Periódicos cadastrados"]
-    )
-
-    with aba1:
-
-        with st.form("form_periodico"):
-
-            nome = st.text_input(
-                "Nome da revista"
-            )
-
-            issn = st.text_input(
-                "ISSN"
-            )
-
-            qualis = st.selectbox(
-                "Qualis",
-                [
-                    "Não informado",
-                    "A1",
-                    "A2",
-                    "A3",
-                    "A4",
-                    "B1",
-                    "B2",
-                    "B3",
-                    "B4",
-                    "C"
-                ]
-            )
+        with c2:
 
             area = st.text_input(
-                "Área"
+                "Área / linha de pesquisa"
             )
-
-            scopus = st.selectbox(
-                "Scopus",
-                ["Não informado", "Sim", "Não"]
-            )
-
-            web_of_science = st.selectbox(
-                "Web of Science",
-                ["Não informado", "Sim", "Não"]
-            )
-
-            scielo = st.selectbox(
-                "SciELO",
-                ["Não informado", "Sim", "Não"]
-            )
-
-            site = st.text_input(
-                "Site"
-            )
-
-            observacoes = st.text_area(
-                "Observações"
-            )
-
-            enviar = st.form_submit_button(
-                "Cadastrar periódico"
-            )
-
-            if enviar:
-
-                if not nome:
-                    st.error(
-                        "Informe o nome da revista."
-                    )
-
-                else:
-
-                    inserir(
-                        "periodicos",
-                        [
-                            "nome",
-                            "issn",
-                            "qualis",
-                            "area",
-                            "scopus",
-                            "web_of_science",
-                            "scielo",
-                            "site",
-                            "observacoes"
-                        ],
-                        [
-                            nome,
-                            issn,
-                            qualis,
-                            area,
-                            scopus,
-                            web_of_science,
-                            scielo,
-                            site,
-                            observacoes
-                        ]
-                    )
-
-                    st.success(
-                        "Periódico cadastrado."
-                    )
-
-    with aba2:
-
-        dados, _ = buscar("periodicos")
-
-        if not dados:
-            st.info(
-                "Nenhum periódico cadastrado."
-            )
-
-        for revista in dados:
-
-            (
-                id_revista,
-                nome,
-                issn,
-                qualis,
-                area,
-                scopus,
-                web_of_science,
-                scielo,
-                site,
-                observacoes
-            ) = revista
-
-            with st.expander(nome):
-
-                st.write(f"**ISSN:** {issn}")
-                st.write(f"**Qualis:** {qualis}")
-                st.write(f"**Área:** {area}")
-                st.write(f"**Scopus:** {scopus}")
-                st.write(
-                    f"**Web of Science:** {web_of_science}"
-                )
-                st.write(f"**SciELO:** {scielo}")
-
-                if site:
-                    st.write(
-                        f"**Site:** {site}"
-                    )
-
-                if observacoes:
-                    st.write(
-                        f"**Observações:** {observacoes}"
-                    )
-
-                if st.button(
-                    "Excluir periódico",
-                    key=f"excluir_periodico_{id_revista}"
-                ):
-
-                    excluir(
-                        "periodicos",
-                        id_revista
-                    )
-
-                    st.rerun()
-
-
-# ============================================================
-# SUBMISSÕES
-# ============================================================
-
-elif pagina == "Submissões":
-
-    st.title("📤 Submissões")
-
-    artigos, _ = buscar("artigos")
-    periodicos, _ = buscar("periodicos")
-
-    nomes_artigos = [
-        artigo[1]
-        for artigo in artigos
-    ]
-
-    nomes_periodicos = [
-        revista[1]
-        for revista in periodicos
-    ]
-
-    if not nomes_artigos:
-        st.warning(
-            "Cadastre pelo menos um artigo antes de criar uma submissão."
-        )
-
-    elif not nomes_periodicos:
-        st.warning(
-            "Cadastre pelo menos um periódico antes de criar uma submissão."
-        )
-
-    else:
-
-        with st.form("form_submissao"):
-
-            artigo = st.selectbox(
-                "Artigo",
-                nomes_artigos
-            )
-
-            periodico = st.selectbox(
-                "Periódico",
-                nomes_periodicos
-            )
-
-            data_submissao = st.date_input(
-                "Data da submissão",
-                value=date.today()
-            )
-
-            status = st.selectbox(
-                "Status",
-                [
-                    "A preparar",
-                    "Submetido",
-                    "Em avaliação",
-                    "Revisões solicitadas",
-                    "Aceito",
-                    "Rejeitado",
-                    "Publicado"
-                ]
-            )
-
-            prazo = st.text_input(
-                "Prazo estimado de avaliação"
-            )
-
-            observacoes = st.text_area(
-                "Observações"
-            )
-
-            enviar = st.form_submit_button(
-                "Registrar submissão"
-            )
-
-            if enviar:
-
-                inserir(
-                    "submissoes",
-                    [
-                        "artigo",
-                        "periodico",
-                        "data_submissao",
-                        "status",
-                        "prazo",
-                        "observacoes"
-                    ],
-                    [
-                        artigo,
-                        periodico,
-                        str(data_submissao),
-                        status,
-                        prazo,
-                        observacoes
-                    ]
-                )
-
-                st.success(
-                    "Submissão registrada."
-                )
 
         st.divider()
 
-        st.subheader(
-            "Submissões cadastradas"
+        st.subheader("Projeto de pesquisa")
+
+        problema = st.text_area(
+            "Problema de pesquisa",
+            height=120
         )
 
-        dados, _ = buscar("submissoes")
-
-        for submissao in dados:
-
-            (
-                id_submissao,
-                artigo,
-                periodico,
-                data_submissao,
-                status,
-                prazo,
-                observacoes
-            ) = submissao
-
-            with st.expander(
-                f"{artigo} → {periodico}"
-            ):
-
-                st.write(
-                    f"**Data:** {data_submissao}"
-                )
-
-                st.write(
-                    f"**Status:** {status}"
-                )
-
-                st.write(
-                    f"**Prazo:** {prazo}"
-                )
-
-                if observacoes:
-                    st.write(
-                        f"**Observações:** {observacoes}"
-                    )
-
-                if st.button(
-                    "Excluir submissão",
-                    key=f"excluir_submissao_{id_submissao}"
-                ):
-
-                    excluir(
-                        "submissoes",
-                        id_submissao
-                    )
-
-                    st.rerun()
-
-
-# ============================================================
-# PUBLICAÇÕES
-# ============================================================
-
-elif pagina == "Publicações":
-
-    st.title("🏆 Publicações")
-
-    with st.form("form_publicacao"):
-
-        artigo = st.text_input(
-            "Título do artigo"
+        hipotese = st.text_area(
+            "Hipótese",
+            height=120
         )
 
-        periodico = st.text_input(
-            "Revista / periódico"
+        objetivo_geral = st.text_area(
+            "Objetivo geral",
+            height=120
         )
 
-        doi = st.text_input(
-            "DOI"
+        objetivos_especificos = st.text_area(
+            "Objetivos específicos",
+            height=150
         )
 
-        data_publicacao = st.date_input(
-            "Data de publicação",
-            value=date.today()
+        metodologia = st.text_area(
+            "Metodologia",
+            height=150
         )
 
-        link = st.text_input(
-            "Link"
+        palavras_chave = st.text_input(
+            "Palavras-chave"
         )
 
         observacoes = st.text_area(
-            "Observações"
+            "Observações iniciais",
+            height=100
         )
 
         enviar = st.form_submit_button(
-            "Cadastrar publicação"
+            "Criar projeto e iniciar desenvolvimento",
+            use_container_width=True
         )
 
         if enviar:
 
-            if not artigo:
+            if not nome_projeto:
+
                 st.error(
-                    "Informe o título do artigo."
+                    "Informe o nome do projeto."
+                )
+
+            elif not titulo:
+
+                st.error(
+                    "Informe o título provisório."
                 )
 
             else:
 
-                inserir(
-                    "publicacoes",
-                    [
-                        "artigo",
-                        "periodico",
-                        "doi",
-                        "data_publicacao",
-                        "link",
-                        "observacoes"
-                    ],
-                    [
-                        artigo,
-                        periodico,
-                        doi,
-                        str(data_publicacao),
-                        link,
-                        observacoes
-                    ]
-                )
+                agora = str(date.today())
+
+                executar("""
+                    INSERT INTO artigos (
+                        nome_projeto,
+                        titulo,
+                        problema,
+                        hipotese,
+                        objetivo_geral,
+                        objetivos_especificos,
+                        metodologia,
+                        autores,
+                        orientador,
+                        area,
+                        palavras_chave,
+                        observacoes,
+                        progresso,
+                        status,
+                        data_criacao,
+                        data_atualizacao
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    nome_projeto,
+                    titulo,
+                    problema,
+                    hipotese,
+                    objetivo_geral,
+                    objetivos_especificos,
+                    metodologia,
+                    autores,
+                    orientador,
+                    area,
+                    palavras_chave,
+                    observacoes,
+                    0,
+                    "desenvolvimento",
+                    agora,
+                    agora
+                ))
 
                 st.success(
-                    "Publicação cadastrada."
+                    "Projeto criado. O artigo já foi encaminhado para Desenvolvimento."
                 )
 
-    st.divider()
+                st.info(
+                    "Agora acesse 'Artigos em Desenvolvimento' para continuar a redação."
+                )
 
-    dados, _ = buscar("publicacoes")
 
-    if not dados:
+# ============================================================
+# ARTIGOS EM DESENVOLVIMENTO
+# ============================================================
+
+elif pagina == "Artigos em Desenvolvimento":
+
+    st.markdown(
+        '<div class="titulo-principal">Artigos em Desenvolvimento</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitulo">Área de redação e construção dos artigos</div>',
+        unsafe_allow_html=True
+    )
+
+    artigos = buscar("""
+        SELECT id, nome_projeto, titulo, progresso
+        FROM artigos
+        WHERE status = 'desenvolvimento'
+        ORDER BY data_atualizacao DESC
+    """)
+
+    if not artigos:
 
         st.info(
-            "Nenhuma publicação cadastrada."
+            "Nenhum artigo em desenvolvimento."
         )
 
-    for publicacao in dados:
+    for artigo in artigos:
+
+        id_artigo, nome_projeto, titulo, progresso = artigo
+
+        nome = titulo or nome_projeto or "Sem título"
+
+        with st.expander(
+            f"📄 {nome}"
+        ):
+
+            st.caption(
+                f"Projeto: {nome_projeto or 'Não informado'}"
+            )
+
+            st.divider()
+
+            dados = buscar_artigo(id_artigo)
+
+            # índices correspondentes às colunas da tabela
+
+            st.subheader("Informações do artigo")
+
+            novo_titulo = st.text_input(
+                "Título",
+                value=dados[2] or "",
+                key=f"titulo_{id_artigo}"
+            )
+
+            resumo = st.text_area(
+                "Resumo",
+                value=dados[19] or "",
+                height=180,
+                key=f"resumo_{id_artigo}"
+            )
+
+            abstract = st.text_area(
+                "Abstract",
+                value=dados[20] or "",
+                height=180,
+                key=f"abstract_{id_artigo}"
+            )
+
+            palavras = st.text_input(
+                "Palavras-chave",
+                value=dados[21] or "",
+                key=f"palavras_{id_artigo}"
+            )
+
+            st.divider()
+
+            st.subheader("Estrutura do artigo")
+
+            introducao = st.text_area(
+                "Introdução",
+                value=dados[22] or "",
+                height=220,
+                key=f"intro_{id_artigo}"
+            )
+
+            c1, c2 = st.columns(2)
+
+            with c1:
+
+                cap1_titulo = st.text_input(
+                    "Título do Capítulo 1",
+                    value=dados[23] or "",
+                    key=f"cap1t_{id_artigo}"
+                )
+
+                cap1 = st.text_area(
+                    "Conteúdo do Capítulo 1",
+                    value=dados[24] or "",
+                    height=250,
+                    key=f"cap1_{id_artigo}"
+                )
+
+            with c2:
+
+                cap2_titulo = st.text_input(
+                    "Título do Capítulo 2",
+                    value=dados[25] or "",
+                    key=f"cap2t_{id_artigo}"
+                )
+
+                cap2 = st.text_area(
+                    "Conteúdo do Capítulo 2",
+                    value=dados[26] or "",
+                    height=250,
+                    key=f"cap2_{id_artigo}"
+                )
+
+            c1, c2 = st.columns(2)
+
+            with c1:
+
+                cap3_titulo = st.text_input(
+                    "Título do Capítulo 3",
+                    value=dados[27] or "",
+                    key=f"cap3t_{id_artigo}"
+                )
+
+                cap3 = st.text_area(
+                    "Conteúdo do Capítulo 3",
+                    value=dados[28] or "",
+                    height=250,
+                    key=f"cap3_{id_artigo}"
+                )
+
+            with c2:
+
+                cap4_titulo = st.text_input(
+                    "Título do Capítulo 4",
+                    value=dados[29] or "",
+                    key=f"cap4t_{id_artigo}"
+                )
+
+                cap4 = st.text_area(
+                    "Conteúdo do Capítulo 4",
+                    value=dados[30] or "",
+                    height=250,
+                    key=f"cap4_{id_artigo}"
+                )
+
+            conclusao = st.text_area(
+                "Conclusão",
+                value=dados[31] or "",
+                height=220,
+                key=f"conclusao_{id_artigo}"
+            )
+
+            referencias = st.text_area(
+                "Referências",
+                value=dados[32] or "",
+                height=250,
+                key=f"referencias_{id_artigo}"
+            )
+
+            st.divider()
+
+            progresso_novo = st.slider(
+                "Percentual de conclusão",
+                0,
+                100,
+                int(dados[34] or 0),
+                key=f"progresso_{id_artigo}"
+            )
+
+            observacoes = st.text_area(
+                "Observações",
+                value=dados[33] or "",
+                height=120,
+                key=f"obs_{id_artigo}"
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                if st.button(
+                    "💾 Salvar alterações",
+                    key=f"salvar_{id_artigo}",
+                    use_container_width=True
+                ):
+
+                    executar("""
+                        UPDATE artigos
+                        SET
+                            titulo = ?,
+                            resumo = ?,
+                            abstract = ?,
+                            palavras_chave = ?,
+                            introducao = ?,
+                            capitulo_1_titulo = ?,
+                            capitulo_1 = ?,
+                            capitulo_2_titulo = ?,
+                            capitulo_2 = ?,
+                            capitulo_3_titulo = ?,
+                            capitulo_3 = ?,
+                            capitulo_4_titulo = ?,
+                            capitulo_4 = ?,
+                            conclusao = ?,
+                            referencias = ?,
+                            observacoes = ?,
+                            progresso = ?,
+                            data_atualizacao = ?
+                        WHERE id = ?
+                    """, (
+                        novo_titulo,
+                        resumo,
+                        abstract,
+                        palavras,
+                        introducao,
+                        cap1_titulo,
+                        cap1,
+                        cap2_titulo,
+                        cap2,
+                        cap3_titulo,
+                        cap3,
+                        cap4_titulo,
+                        cap4,
+                        conclusao,
+                        referencias,
+                        observacoes,
+                        progresso_novo,
+                        str(date.today()),
+                        id_artigo
+                    ))
+
+                    st.success(
+                        "Alterações salvas."
+                    )
+
+                    st.rerun()
+
+            with col2:
+
+                if st.button(
+                    "✓ Concluir para submissão",
+                    key=f"concluir_{id_artigo}",
+                    use_container_width=True
+                ):
+
+                    executar("""
+                        UPDATE artigos
+                        SET
+                            status = 'concluido',
+                            progresso = 100,
+                            data_atualizacao = ?
+                        WHERE id = ?
+                    """, (
+                        str(date.today()),
+                        id_artigo
+                    ))
+
+                    st.success(
+                        "Artigo encaminhado para Concluídos para submissão."
+                    )
+
+                    st.rerun()
+
+
+# ============================================================
+# CONCLUÍDOS PARA SUBMISSÃO
+# ============================================================
+
+elif pagina == "Concluídos para submissão":
+
+    st.markdown(
+        '<div class="titulo-principal">Concluídos para submissão</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="subtitulo">Artigos finalizados e prontos para escolha do periódico</div>',
+        unsafe_allow_html=True
+    )
+
+    artigos = buscar("""
+        SELECT id, nome_projeto, titulo, autores, area
+        FROM artigos
+        WHERE status = 'concluido'
+        ORDER BY data_atualizacao DESC
+    """)
+
+    if not artigos:
+
+        st.info(
+            "Ainda não há artigos concluídos para submissão."
+        )
+
+    for artigo in artigos:
 
         (
-            id_publicacao,
-            artigo,
-            periodico,
-            doi,
-            data_publicacao,
-            link,
-            observacoes
-        ) = publicacao
+            id_artigo,
+            nome_projeto,
+            titulo,
+            autores,
+            area
+        ) = artigo
 
-        with st.expander(artigo):
+        nome = titulo or nome_projeto or "Sem título"
+
+        st.markdown(
+            f"""
+            <div class="card">
+                <div class="card-titulo">
+                    {nome}
+                </div>
+
+                <div class="card-meta">
+                    Projeto: {nome_projeto or "Não informado"}
+                </div>
+
+                <div class="card-meta">
+                    Autores: {autores or "Não informado"}
+                </div>
+
+                <div class="card-meta">
+                    Área: {area or "Não informada"}
+                </div>
+
+                <br>
+
+                <span class="status">
+                    PRONTO PARA SUBMISSÃO
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        dados = buscar_artigo(id_artigo)
+
+        with st.expander("Abrir artigo"):
 
             st.write(
-                f"**Periódico:** {periodico}"
+                f"**Título:** {dados[2]}"
             )
 
             st.write(
-                f"**DOI:** {doi}"
+                f"**Resumo:** {dados[19] or 'Não preenchido'}"
             )
 
             st.write(
-                f"**Data:** {data_publicacao}"
+                f"**Palavras-chave:** {dados[21] or 'Não preenchido'}"
             )
 
-            if link:
-                st.write(
-                    f"**Link:** {link}"
-                )
+            st.write(
+                f"**Referências:** {dados[32] or 'Não preenchido'}"
+            )
 
-            if observacoes:
-                st.write(
-                    f"**Observações:** {observacoes}"
-                )
+            st.divider()
 
             if st.button(
-                "Excluir publicação",
-                key=f"excluir_publicacao_{id_publicacao}"
+                "↩ Voltar para desenvolvimento",
+                key=f"voltar_{id_artigo}"
             ):
 
-                excluir(
-                    "publicacoes",
-                    id_publicacao
-                )
+                executar("""
+                    UPDATE artigos
+                    SET
+                        status = 'desenvolvimento',
+                        data_atualizacao = ?
+                    WHERE id = ?
+                """, (
+                    str(date.today()),
+                    id_artigo
+                ))
 
                 st.rerun()
